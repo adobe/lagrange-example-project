@@ -51,7 +51,7 @@ target_compile_definitions(foo_lib PUBLIC _USE_MATH_DEFINES)
 target_compile_definitions(foo_lib PUBLIC NOMINMAX)
 
 # C++ standard
-target_compile_features(foo_lib PUBLIC cxx_std_14)
+target_compile_features(foo_lib PUBLIC cxx_std_17)
 
 
 # Application
