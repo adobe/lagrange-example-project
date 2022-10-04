@@ -14,6 +14,6 @@ include(FetchContent)
 FetchContent_Declare(
     lagrange
     GIT_REPOSITORY https://github.com/adobe/lagrange.git
-    GIT_TAG v6.4.0
+    GIT_TAG v6.5.0
 )
 FetchContent_MakeAvailable(lagrange)
