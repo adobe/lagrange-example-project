@@ -8,7 +8,7 @@
 #
 
 # Include more application dependencies here
-include(external/cli11)
+include(cli11)
 
 file(GLOB APP_SOURCES "*.h" "*.cpp")
 add_executable(foo_app ${APP_SOURCES})

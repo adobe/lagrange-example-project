@@ -28,7 +28,10 @@ lagrange_include_modules(ui io)
 
 # We can also include dependencies from Lagrange's .cmake files
 FetchContent_GetProperties(lagrange)
-list(PREPEND CMAKE_MODULE_PATH ${lagrange_SOURCE_DIR}/cmake/recipes)
+list(PREPEND CMAKE_MODULE_PATH
+    ${lagrange_SOURCE_DIR}/cmake/recipes/internal
+    ${lagrange_SOURCE_DIR}/cmake/recipes/external
+)
 
 # Include more core library dependencies here
 
