@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "pinDigests": true,
+  "prConcurrentLimit": 3,
+  "automerge": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/cmake/lagrange\\.cmake$/"
+      ],
+      "matchStrings": [
+        "GIT_REPOSITORY\\s+https://github\\.com/adobe/lagrange\\.git\\s+GIT_TAG\\s+v(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "adobe/lagrange",
+      "datasourceTemplate": "github-tags",
+      "registryUrlTemplate": "https://github.com",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ]
+}
