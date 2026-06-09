@@ -8,12 +8,13 @@
  */
 #include <foo/foo.h>
 
-#include <lagrange/Mesh.h>
+#include <lagrange/SurfaceMesh.h>
 
 namespace foo {
 
 int foo_add(int a, int b)
 {
+    lagrange::SurfaceMesh32f mesh;
     return a + b;
 }
 

@@ -14,6 +14,7 @@ file(GLOB APP_SOURCES "*.h" "*.cpp")
 add_executable(foo_app ${APP_SOURCES})
 target_link_libraries(foo_app PUBLIC
     foo::lib
-    lagrange::ui
+    lagrange::polyscope
+    lagrange::io
     CLI11::CLI11
 )
