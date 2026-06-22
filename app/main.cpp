@@ -20,6 +20,7 @@
 // clang-format off
 #include <lagrange/utils/warnoff.h>
 #include <polyscope/polyscope.h>
+#include <imgui_spectrum.h>
 #include <lagrange/utils/warnon.h>
 #include <lagrange/utils/fmt/format.h>
 #include <lagrange/utils/fmt/join.h>
