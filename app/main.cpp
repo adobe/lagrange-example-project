@@ -6,73 +6,122 @@
  * accordance with the terms of the Adobe license agreement accompanying
  * it.
  */
-// If possible, move your code to your library, so that it can be re-used more easily
-// and you are sure to avoid UI or other application-specific dependencies.
-// Basically, create your library, and be your own client.
-#include <foo/foo.h>
-
-// Third-party include
-#include <lagrange/Mesh.h>
-#include <lagrange/create_mesh.h>
+#include <lagrange/find_matching_attributes.h>
 #include <lagrange/io/load_mesh.h>
-#include <lagrange/ui/UI.h>
+#include <lagrange/io/load_simple_scene.h>
+#include <lagrange/io/save_mesh.h>
+#include <lagrange/map_attribute.h>
+#include <lagrange/polyscope/register_structure.h>
+#include <lagrange/scene/simple_scene_convert.h>
+#include <lagrange/unify_index_buffer.h>
+#include <lagrange/views.h>
+
+
+// clang-format off
+#include <lagrange/utils/warnoff.h>
+#include <polyscope/polyscope.h>
+#include <lagrange/utils/warnon.h>
+#include <lagrange/utils/fmt/format.h>
+#include <lagrange/utils/fmt/join.h>
+// clang-format on
+
 #include <CLI/CLI.hpp>
 
-// System include
-#include <iostream>
+using Scalar = double;
+using Index = uint32_t;
+using SurfaceMesh = lagrange::SurfaceMesh<Scalar, Index>;
+using SimpleScene = lagrange::scene::SimpleScene<Scalar, Index, 3>;
 
-namespace ui = lagrange::ui;
+void prepare_mesh(SurfaceMesh& mesh)
+{
+    lagrange::AttributeMatcher matcher;
+    matcher.element_types = lagrange::AttributeElement::Indexed;
 
-int main(int argc, char const* argv[])
+    // 1st, unify index buffers for all non-UV indexed attributes
+    matcher.usages = ~lagrange::BitField(lagrange::AttributeUsage::UV);
+    auto ids = lagrange::find_matching_attributes(mesh, matcher);
+    if (!ids.empty()) {
+        std::vector<std::string> attr_names;
+        for (auto id : ids) {
+            attr_names.emplace_back(mesh.get_attribute_name(id));
+        }
+        lagrange::logger().info(
+            "Unifying index buffers for {} non-UV indexed attributes: {}",
+            ids.size(),
+            lagrange::join(attr_names, ", "));
+        mesh = lagrange::unify_index_buffer(mesh, ids);
+    }
+
+    // 2nd, convert indexed UV attributes into corner attributes
+    matcher.usages = lagrange::AttributeUsage::UV;
+    ids = lagrange::find_matching_attributes(mesh, matcher);
+    for (auto id : ids) {
+        lagrange::logger().info(
+            "Converting indexed UV attribute to corner attribute: {}",
+            mesh.get_attribute_name(id));
+        map_attribute_in_place(mesh, id, lagrange::AttributeElement::Corner);
+    }
+}
+
+int main(int argc, char** argv)
 {
     struct
     {
-        std::string input;
+        std::vector<lagrange::fs::path> inputs;
+        bool scene = false;
+        int log_level = 2; // normal
     } args;
 
     CLI::App app{argv[0]};
-    app.option_defaults()->always_capture_default();
-    app.add_option("input", args.input, "Input mesh.");
-    CLI11_PARSE(app, argc, argv);
+    app.add_option("inputs", args.inputs, "Input mesh(es).")->required()->check(CLI::ExistingFile);
+    app.add_option("-l,--level", args.log_level, "Log level (0 = most verbose, 6 = off).");
+    app.add_flag("--scene", args.scene, "Load as a scene (instead of a single mesh per file).");
+    CLI11_PARSE(app, argc, argv)
 
-    std::cout << "Hello world!" << std::endl;
+    spdlog::set_level(static_cast<spdlog::level::level_enum>(args.log_level));
 
-    ui::Viewer viewer("Hello world!", 800, 600);
-    if (!viewer.is_initialized()) return 1;
-
-    auto& r = viewer.registry();
-
-    ui::Entity mesh_entity = ui::NullEntity;
-
-    if (args.input.empty()) {
-        // you can create meshes and import in UI
-        std::shared_ptr<lagrange::TriangleMesh3D> mesh = lagrange::create_sphere();
-        mesh_entity = ui::register_mesh(r, mesh);
-
-    } else if (true) {
-        // you can load meshes and load into the UI. This will only load geometry, and discard
-        // things like material information.
-        std::shared_ptr<lagrange::TriangleMesh3D> mesh =
-            lagrange::io::load_mesh<lagrange::TriangleMesh3D>(args.input);
-        mesh_entity = ui::register_mesh(r, mesh);
-
-    } else {
-        // or you can use the ui loader
-        mesh_entity = ui::load_obj<lagrange::TriangleMesh3D>(r, args.input);
-        // if you have LAGRANGE_WITH_ASSIMP enabled, you can also use ui::load_scene
+    // Set Z-up for .obj and .fbx files
+    if (std::all_of(args.inputs.begin(), args.inputs.end(), [](const lagrange::fs::path& p) {
+            auto ext = p.extension();
+            return ext == ".obj" || ext == ".fbx";
+        })) {
+        polyscope::view::setUpDir(polyscope::UpDir::ZUp);
+        polyscope::view::setFrontDir(polyscope::FrontDir::NegYFront);
     }
 
-    // Add mesh to the scene
-    ui::show_mesh(r, mesh_entity);
+    polyscope::options::configureImGuiStyleCallback = []() {
+        ImGui::Spectrum::StyleColorsSpectrum();
+        ImGui::Spectrum::LoadFont();
+    };
+    polyscope::init();
 
-    // Adjust camera to show the entire mesh, regardless of it's original size
-    ui::camera_focus_and_fit(r, ui::get_focused_camera_entity(r));
+    lagrange::io::LoadOptions load_options;
+    load_options.stitch_vertices = true;
 
-    viewer.run([](ui::Registry& r) -> bool {
-        // main loop code
+    for (auto input : args.inputs) {
+        lagrange::logger().info("Loading input: {}", input.string());
 
-        return true; // should continue running?
-    });
+        if (args.scene) {
+            SimpleScene simple_scene =
+                lagrange::io::load_simple_scene<SimpleScene>(input, load_options);
+            auto meshes = lagrange::scene::simple_scene_to_meshes(simple_scene);
+            lagrange::logger().info(
+                "Loaded scene with {} mesh(es) from {}",
+                meshes.size(),
+                input.string());
+            for (size_t i = 0; i < meshes.size(); ++i) {
+                prepare_mesh(meshes[i]);
+                std::string name = input.stem().string() + "_" + std::to_string(i);
+                lagrange::polyscope::register_structure(name, std::move(meshes[i]));
+            }
+        } else {
+            SurfaceMesh mesh = lagrange::io::load_mesh<SurfaceMesh>(input, load_options);
+            prepare_mesh(mesh);
+            lagrange::polyscope::register_structure(input.stem().string(), std::move(mesh));
+        }
+    }
+
+    polyscope::show();
 
     return 0;
 }

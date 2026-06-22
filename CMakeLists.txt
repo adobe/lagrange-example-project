@@ -23,8 +23,8 @@ list(PREPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # Include the Lagrange library (only importing lagrange::core for now)
 include(lagrange) # Note: Lagrange's version in `cmake/lagrange.cmake` might be old, update if needed.
 
-# Import additional Lagrange modules lagrange::ui and lagrange::io
-lagrange_include_modules(ui io)
+# Import additional Lagrange modules lagrange::io and lagrange::polyscope
+lagrange_include_modules(io polyscope)
 
 # We can also include dependencies from Lagrange's .cmake files
 FetchContent_GetProperties(lagrange)
