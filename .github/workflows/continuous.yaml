@@ -41,7 +41,7 @@ jobs:
 
       - name: Ccache
         if: runner.os != 'Windows'
-        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
+        uses: hendrikmuhs/ccache-action@e91f31892a1d1b8c44424b1a94c0b7f52d337168 # v1.2
         with:
           key: ${{ matrix.os }}-${{ matrix.config }}
 
